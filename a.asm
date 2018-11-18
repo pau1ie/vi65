@@ -84,7 +84,7 @@
 ;n; <h3>Normal mode keys</h3>
 
 SIMPLE		= 0
-
+BBC             = 1
 C16		= 16
 C64		= 64
 C128		= 128
@@ -129,8 +129,15 @@ pla:		.macro
 zpstart		= $80
 		.elsif TARGET==APPLE2
 zpstart		= $77
+		.elsif TARGET==BBC
+zpstart		= 0
 		.else
 zpstart		= $11
+		.fi
+
+		.if TARGET==BBC
+osrdch		= $ffe0
+osbyte		= $fff4
 		.fi
 
 		.logical zpstart
@@ -166,6 +173,9 @@ oneless		.fill 1
 activewin	.fill 1
 
 num		.fill 3+2
+		.if (TARGET==BBC)
+kbchr           .fill 1
+		.fi
 zpend
 		.here
 
@@ -321,6 +331,16 @@ kernal		.macro
 		.endm
 ram		.macro
 		.endm
+		.elsif TARGET==BBC
+		*= $1300
+memoryend	= $7a00
+linebuffer	= $0500
+status		= 2
+drive		= 2
+kernal		.macro
+		.endm
+ram		.macro
+		.endm
 		.fi
 
 		.if TARGET==ATARI800
@@ -341,6 +361,15 @@ k_del		= 8
 k_return	= 13
 k_ins		= 255
 k_control	= 64
+		.elsif TARGET==BBC
+k_cursordown	= 138
+k_cursorup	= 139
+k_cursorleft	= 136
+k_cursorright	= 137
+k_del		= 127
+k_return	= 13
+k_ins		= 255
+k_control	= 96
 		.else
 k_cursordown	= 17
 k_cursorup	= 145
@@ -924,6 +953,18 @@ waitkey		.proc
 
 +		and #$7f
 		sta $c010
+		.elsif TARGET==BBC
+                jsr display
+                jsr cursorup
+                jsr osrdch
+                sta kbchr
+                cmp #$1b     ; If escape
+                bne +
+                pha
+                lda #$7e     
+                jsr osbyte   ; clear error
+                pla
++
 		.else
 read		ldx #0
 write		cpx #0
@@ -960,7 +1001,7 @@ ej		lda #0
 		pha
 		jsr cursoroff
 
-		.if (TARGET!=ATARI800) && (TARGET!=APPLE2)
+		.if (TARGET!=ATARI800) && (TARGET!=APPLE2) && (TARGET != BBC)
 		lda keyrepeatdelay
 		lsr
 		beq +
@@ -973,7 +1014,7 @@ ej		lda #0
 		.pend
 
 cursorup	.proc
-		.if TARGET==APPLE2
+		.if TARGET==APPLE2 || TARGET == BBC
 		lda #0
 		inc *-1
 		bne +
@@ -989,7 +1030,7 @@ cp		cmp #0
 		.pend
 
 		.if !SIMPLE
-waitkeyrepeat	.proc
+waitkeyrepeat	.proc		; Read a key
 		jsr waitkey
 		cmp #"1"
 		blt ik
@@ -2413,6 +2454,7 @@ load		.proc
 		stx oldsp+1
 		lda #close.rd
 		jsr open
+                .elseif TARGET==BBC
 		.else
 		#kernal
 		ldy #0
@@ -2424,7 +2466,7 @@ load		.proc
 		lda #1
 		sta loading
 
-		.if (TARGET!=ATARI800) && (TARGET!=APPLE2)
+		.if (TARGET!=ATARI800) && (TARGET!=APPLE2) && (TARGET != BBC)
 		ldx #k_return
 		lda filename+1
 		cmp #"$"
@@ -2459,6 +2501,16 @@ loop		.if TARGET==ATARI800
 		ldx #0
 -		jsr moncin
 		and #$7f
+		cmp #k_return
+		beq +
+		sta linebuffer+1,x
+		inx
+		cpx #250
+		blt -
++
+		.elsif TARGET==BBC
+		ldx #0
+-		jsr osrdch
 		cmp #k_return
 		beq +
 		sta linebuffer+1,x
@@ -2561,6 +2613,8 @@ j
 		.if TARGET==APPLE2
 		lda $c000
 		bmi +
+                .elsif TARGET==BBC
+                lda kbchr
 		.else
 		lda waitkey.read+1
 		eor waitkey.write+1
@@ -2697,6 +2751,21 @@ loop
 		bne -
 +		lda #k_return^$80
 		jsr moncout
+                .elsif TARGET==BBC
+		ldy #4
+		lda (cursorline),y
+		beq +
+		tax
+-		iny
+		lda (cursorline),y
+		eor #$80
+		cmp #$84
+		beq +
+		jsr oswrch
++		dex
+		bne -
++		lda #k_return^$80
+		jsr oswrch
 		.else
 		ldy #4
 		lda (cursorline),y

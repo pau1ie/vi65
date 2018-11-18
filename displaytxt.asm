@@ -69,6 +69,11 @@ width		= 40
 		.fi
 height		= 24
 cache		= $0800
+		.elsif TARGET==BBC
+scr		= $7c00
+width		= 40
+height		= 25
+cache		= $0400
 		.fi
 
 displayinit	.proc
@@ -191,6 +196,8 @@ displayexit	.proc
 		rts
 		.elsif TARGET==APPLE2
 		rts
+		.elsif TARGET==BBC
+		rts
 		.fi
 		.pend
 
@@ -262,6 +269,8 @@ garbagelow	cmp #0
 		lda #"-"^32
 		.elsif TARGET==APPLE2
 		lda #"~"+128
+		.elsif TARGET==BBC
+		lda #"-"
 		.else
 		lda #"-"
 		.fi
@@ -298,11 +307,12 @@ e1		eor #$40
 +
 		.elsif TARGET==APPLE2
 		eor #$80
+		.elsif TARGET==BBC
 		.else
-		cmp #128
+		cmp #128        ; High bit set?
 		bcs hi
 		cmp #$20
-		bcc inv
+		bcc inv         ; Is this less than space?
 		cmp #$60
 		bcc en
 		and #$df
@@ -310,14 +320,14 @@ e1		eor #$40
 en		and #$3f
 		gpl ei
 
-hi		and #$7f
+hi		and #$7f        ; Clear high bit
 		cmp #$7f
 		bne +
 		lda #$5e
 +		cmp #$20
 		ora #$40
 		bcs ei
-inv		ora #$80
+inv		ora #$80        ; Set top bit
 ei
 		.fi
 
@@ -343,7 +353,7 @@ m2
 		bit $c055
 +		txa
 		.fi
-		sta (screen),y
+		sta (screen),y	; Write to screen
 		.if (TARGET==APPLE2) && (width==80)
 		bcs +
 		bit $c054
@@ -354,10 +364,10 @@ m2
 		txa
 		.fi
 		iny
-		cpy #width
+		cpy #width	; End of line
 at		blt m1
 
-u		ldx #0
+u		ldx #0          ; Screen column?
 jo
 		lda activewin
 ao		cmp #0
@@ -430,7 +440,7 @@ cursoroff	.proc
 
 cursor		.proc
 on		lda #0
-in		ldx #0
+in		ldx #0          ; bytes from screen edge
 		.if (TARGET==APPLE2) && (width==80)
 		tay
 		txa
@@ -441,6 +451,15 @@ in		ldx #0
 +		tax
 		tya
 		.fi
+                .if (TARGET=BBC)
+                lda #31 ; Move cursor 
+                jsr oswrch
+                lda cursor.in+1
+                jsr oswrch
+                lda paintone.u+1
+                jsr oswrch
+
+                .fi
 		eor #1
 		sta on+1
 		bne at1
@@ -475,7 +494,10 @@ size		= *+1
 		.else
 		lda #98
 		.fi
-at2		sta scr,x
+at2
+                .if TARGET != BBC
+                sta scr,x
+                .fi
 		.if (TARGET==APPLE2) && (width==80)
 		bcs x
 		bit $c054

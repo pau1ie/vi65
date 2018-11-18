@@ -28,6 +28,8 @@ critical	.byte 0
 		.elsif TARGET==APPLE2
 moncout		= $fded
 moncin		= $fd0c
+		.elsif TARGET==BBC
+oswrch          = $ffee
 		.fi
 
 		.if TARGET==ATARI800

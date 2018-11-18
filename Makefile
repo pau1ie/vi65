@@ -1,20 +1,22 @@
 
-TASS=~/work/tass64/trunk/64tass
+TASS=~/Programs/vi65/tass64-code/64tass
 
 a: a.asm insert.asm cmdline.asm motion.asm scroll.asm displaytxt.asm displaygfx64.asm displaygfx80.asm displayvdc.asm displaygfx53.asm io.asm Makefile doc.txt \
         petscii6x8.fnt atascii6x8.fnt a2ascii6x8.fnt \
 	petscii5x8.fnt atascii5x8.fnt a2ascii5x8.fnt \
 	petscii4x8.fnt atascii4x8.fnt
 	#$(TASS) -b -B -C a.asm -o a -La.dasm -DTARGET=800 -DGFX=1
-	$(TASS) -a -b -B -C a.asm -o a -La.dasm -DTARGET=64 -DGFX=2
-	x64 a
+	#$(TASS) -a -b -B -C a.asm -o a -La.dasm -DTARGET=64 -DGFX=2
+	$(TASS) -b -B -C a.asm -o a -La.dasm -DTARGET=1 -DGFX=0
+	#x64 a
 	#atari800.x11 a
 	#$(TASS) -b -B -C a.asm -o a -La.dasm -DTARGET=2 -DGFX=3
 	#cat b.dsk >a.dsk
 	#./dos33 a.dsk DELETE A
 	#./dos33 a.dsk SAVE B A
 	#./dos33 a.dsk SAVE T doc.atx
-	xset r rate 250 30
+	#xset r rate 250 30
+	./bbc.sh
 	
 doc.html doc.txt doc.seq doc.atx DOC.TXT: a.asm motion.asm scroll.asm insert.asm cmdline.asm
 	grep -h "^;h;" $^ |sed -e "s/^;.; *//" >doc.html
